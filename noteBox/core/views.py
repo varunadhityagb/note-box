@@ -6,7 +6,7 @@ from django.urls import reverse_lazy
 from .forms import CustomLoginForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
-from django.contrib.auth.mixins import LoginRequiredMixin
+from .models import CustomUser, Class, ClassEnrollment, StudyMaterials, PDFAnnotation, Doubt, DoubtResponse, TimeBoxedSession
 
 class CustomLoginView(LoginView):
     form_class = CustomLoginForm
@@ -41,8 +41,24 @@ def classes(request):
         return redirect('core:login')
     elif request.user.is_staff:
         return redirect('/admin')
-    return render(request, 'core/classes.html', {'user': request.user})
+    
+    if not request.user.is_teacher:
+        student = CustomUser.objects.get(username=request.user.username)
+        class_enrollments = ClassEnrollment.objects.filter(students=student)
+        class_list = []
+        for enrollment in class_enrollments:
+            class_instance = enrollment.class_instance
+            class_list.append(class_instance)
+    else:
+        class_list = Class.objects.filter(teachers=request.user)
+    return render(request, 'core/classes.html', {'user': request.user, 'classes':class_list})
 
 
-def smn(req):
-    return HttpResponse("OK")
+def class_redirect(request,class_name):
+    if not request.user.is_authenticated:
+        return redirect('core:login')
+    elif request.user.is_staff:
+        return redirect('/admin')
+    class_instance = Class.objects.get(name=class_name)
+    materials = StudyMaterials.objects.filter(lass_instance=class_instance)
+    return render(request, 'core/class.html', {'user': request.user, 'materials':materials})

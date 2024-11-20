@@ -9,6 +9,6 @@ app_name = 'core'
 urlpatterns = [
     path('', CustomLoginView.as_view(), name='login'),
     path('classes/', views.classes, name='classes'),
-    path('smn/', views.smn, name='smn'),
+    path('classes/<str:class_name>/', views.class_redirect, name='class_redirect'),  
     path('logout/', LogoutView.as_view(next_page='core:login', template_name='core/login.html'), name='logout'),
 ]

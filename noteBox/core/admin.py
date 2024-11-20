@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Class, ClassEnrollment
+from .models import CustomUser, Class, ClassEnrollment, StudyMaterials, PDFAnnotation, Doubt, DoubtResponse, TimeBoxedSession
 
 class CustomUserAdmin(UserAdmin):
     list_display = ('username', 'email', 'is_teacher', 'is_staff', 'is_active')
@@ -25,3 +25,8 @@ admin.site.register(CustomUser, CustomUserAdmin)
 
 admin.site.register(Class)
 admin.site.register(ClassEnrollment)
+admin.site.register(StudyMaterials)
+admin.site.register(PDFAnnotation)
+admin.site.register(Doubt)
+admin.site.register(DoubtResponse)
+admin.site.register(TimeBoxedSession)
