@@ -1,10 +1,270 @@
-<!-- document_view.html -->
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Viewer with Doubts Interface</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #edf5e1; /* Earth green background */
+        }
+
+        #pdf-container {
+            width: 66%;
+            height: 100%;
+            background-color: #f8f9fa; /* Light background for readability */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #pdf-viewer {
+            width: 90%;
+            height: 85%;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            border: 1px solid #c0c0c0; /* Subtle border for canvas */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Depth for canvas */
+        }
+
+        #page-navigation {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        #page-navigation button {
+            margin: 0 10px;
+            padding: 5px 15px;
+            background-color: #4CAF50; /* Earth green button */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #page-navigation button:disabled {
+            background-color: #c8e6c9; /* Disabled light green */
+            cursor: not-allowed;
+        }
+
+        #page-navigation button:hover:not(:disabled) {
+            background-color: #388e3c; /* Darker green for hover */
+        }
+
+        #page-number {
+            margin: 0 10px;
+            font-size: 1em;
+            color: #333; /* Neutral text color */
+        }
+
+        #doubts-container {
+            width: 34%;
+            height: 100%;
+            background-color: #d4e157; /* Earth green accent */
+            display: flex;
+            flex-direction: column;
+            border-left: 2px solid #81c784; /* Divider in accent green */
+        }
+
+        .doubts-header {
+            padding: 15px;
+            background-color: #8bc34a; /* Header background */
+            color: white;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 2px solid #558b2f; /* Divider for header */
+        }
+
+        .doubts-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f0f4c3; /* Light background for readability */
+        }
+
+        .doubt-section {
+            margin-bottom: 20px;
+        }
+
+        .section-header {
+            font-weight: bold;
+            padding: 10px;
+            background-color: #c5e1a5; /* Muted green section headers */
+            border-radius: 4px;
+            margin-bottom: 10px;
+            border: 1px solid #9ccc65;
+            color: #2e7d32; /* Green text for clarity */
+        }
+
+        .doubt-item {
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #ffffff; /* White background for content */
+            border-radius: 4px;
+            border: 1px solid #c0c0c0; /* Neutral border for doubts */
+            color: #333; /* Text color */
+        }
+
+        .add-doubt-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #4CAF50; /* Green floating button */
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 56px;
+            height: 56px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Depth effect */
+            transition: background-color 0.3s ease;
+        }
+
+        .add-doubt-button:hover {
+            background-color: #388e3c; /* Hover darker green */
+        }
+    </style>
 </head>
 <body>
-    <!-- Embed the PDF using object tag -->
-    <iframe src="{{ pdf_url }}" width="600" height="400"></iframe>
+    <div id="pdf-container">
+        <div id="pdf-viewer"></div>
+        <div id="page-navigation">
+            <button id="prev-page" disabled>Previous</button>
+            <span id="page-number">Page 1</span>
+            <button id="next-page">Next</button>
+        </div>
+    </div>
+    <div id="doubts-container">
+        <div class="doubts-header">Doubts</div>
+        <div class="doubts-list">
+            <div class="doubt-section">
+                <div class="section-header">Open</div>
+                <div class="doubt-item">What is the significance of this theorem?</div>
+                
+            </div>
+            <div class="doubt-section">
+                <div class="section-header">Answered</div>
+                <div class="doubt-item">How does this relate to the previous chapter?</div>
+                <div class="doubt-item">Is this formula applicable in all cases?</div>
+            </div>
+            <div class="doubt-section">
+                <div class="section-header">Closed</div>
+                <div class="doubt-item">What are the prerequisites for this topic?</div>
+            </div>
+        </div>
+        <button class="add-doubt-button">+</button>
+    </div>
 
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        const url = "{{ pdf_url }}"; // Django will provide this variable
+        const container = document.getElementById('pdf-viewer');
+        const prevPageBtn = document.getElementById('prev-page');
+        const nextPageBtn = document.getElementById('next-page');
+        const pageNumberSpan = document.getElementById('page-number');
+
+        let pdfDoc = null;
+        let pageNum = 1;
+        let pageRendering = false;
+        let pageNumPending = null;
+
+        function renderPage(num) {
+            pageRendering = true;
+
+            // Clear previous page
+            container.innerHTML = '';
+
+            pdfDoc.getPage(num).then(function(page) {
+                const viewport = page.getViewport({ scale: 1.5 });
+
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                container.appendChild(canvas);
+
+                const renderContext = {
+                    canvasContext: context,
+                    viewport: viewport
+                };
+
+                const renderTask = page.render(renderContext);
+                renderTask.promise.then(function() {
+                    pageRendering = false;
+                    if (pageNumPending !== null) {
+                        renderPage(pageNumPending);
+                        pageNumPending = null;
+                    }
+                });
+            });
+
+            pageNumberSpan.textContent = `Page ${num}`;
+            prevPageBtn.disabled = (num <= 1);
+            nextPageBtn.disabled = (num >= pdfDoc.numPages);
+        }
+
+        function queueRenderPage(num) {
+            if (pageRendering) {
+                pageNumPending = num;
+            } else {
+                renderPage(num);
+            }
+        }
+
+        function onPrevPage() {
+            if (pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+        }
+
+        function onNextPage() {
+            if (pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
+        }
+
+        async function loadPDF() {
+            try {
+                const loadingTask = pdfjsLib.getDocument(url);
+                pdfDoc = await loadingTask.promise;
+
+                nextPageBtn.disabled = (pdfDoc.numPages <= 1);
+                prevPageBtn.disabled = true;
+
+                renderPage(1);
+
+                prevPageBtn.addEventListener('click', onPrevPage);
+                nextPageBtn.addEventListener('click', onNextPage);
+            } catch (error) {
+                console.error("Error loading PDF:", error);
+                container.innerHTML = `<p>PDF Load Error: ${error.message}</p>`;
+            }
+        }
+
+        loadPDF();
+
+        document.querySelector('.add-doubt-button').addEventListener('click', function() {
+            console.log('Add doubt clicked');
+        });
+    </script>
 </body>
 </html>

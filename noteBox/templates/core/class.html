@@ -214,7 +214,7 @@
           <h2 class="section-title">Materials</h2>
           <div class="file-list">
             {% for material in materials %}
-            <div class="file-item">{{ material.title }}.pdf</div>
+            <div class="file-item" onclick="window.location.replace('./' + this.innerHTML.slice(0,-4))">{{ material.title }}.pdf</div>
             {% endfor %}
           </div>
         </section>

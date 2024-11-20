@@ -99,6 +99,19 @@ def pdf_view(request, class_name, fileName):
         title=fileName
     ).first() 
 
+    doubts_status_wise = (Doubt.objects
+                          .filter(study_material=pdf_material)
+                          .order_by('status', 'created_at'))
+    
+    grouped_doubts = {
+        'OPEN': [],
+        'ANSWERED': [],
+        'CLOSED': []
+    }
+
+    for doubt in doubts_status_wise:
+        grouped_doubts[doubt.status].append(doubt)
+
     document = get_object_or_404(StudyMaterials, id=pdf_material.id)
-    return render(request, 'core/pdf.html', {'pdf_url': document.file.url.replace('study_materials/study_materials/', 'study_materials/')})
+    return render(request, 'core/pdf.html', {'pdf_url': document.file.url, 'grouped_doubts':grouped_doubts})
 

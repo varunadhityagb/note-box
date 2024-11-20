@@ -144,3 +144,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = '/study_materials/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'study_materials')
+
+X_FRAME_OPTIONS = 'SAMEORIGIN'
