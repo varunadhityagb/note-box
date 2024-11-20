@@ -133,7 +133,7 @@
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 20px;
     }
-    .time-box-item {
+    .time-box-item{ 
       background: rgba(255, 255, 255, 0.1);
       border-radius: 8px;
       padding: 20px;
@@ -143,10 +143,50 @@
       color: #fff;
       transition: transform 0.3s, box-shadow 0.3s;
     }
-    .time-box-item:hover {
+    .time-box-item:hover  {
       transform: scale(1.05);
       box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
     }
+
+
+    .popup {
+        display: none; /* Hidden by default */
+        position: fixed;
+        z-index: 1; /* Sit on top */
+        left: 0;
+        top: 0;
+        width: 100%; /* Full width */
+        height: 100%; /* Full height */
+        background-color: rgba(0, 0, 0, 0.4); /* Semi-transparent background */
+    }
+
+    .popup-content {
+        background: linear-gradient(135deg, #2c3e50, #4ca1af);
+        margin: 15% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+        max-width: 400px;
+        position: relative;
+    }
+
+    .close-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 30px;
+        font-weight: bold;
+        color: #aaa;
+        cursor: pointer;
+    }
+
+    .close-btn:hover,
+    .close-btn:focus {
+        color: black;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
   </style>
 </head>
 <body>
@@ -183,11 +223,28 @@
         <section class="mt-5">
           <h2 class="section-title">Time Boxes</h2>
           <div class="time-box-grid">
-            <div class="time-box-item">Morning</div>
+            {% for timebox in timeboxes %}
+            <div class="time-box-item">{{ timebox.title }}</div>
+            {% endfor %}
+            <div class="time-box-item" id="openPopupBtn">New +</div>
           </div>
         </section>
         {% endif %}
       </div>
+
+      <div id="popup" class="popup">
+        <div class="popup-content">
+            <span id="closePopupBtn" class="close-btn">&times;</span>
+            <h2>Add TimeBox</h2>
+            <form method="post"">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">SUBMIT</button>
+            </form>
+            
+        </div>
+      </div>
+
   </main>
   <script>
     // Toggle Profile Menu
@@ -212,6 +269,26 @@
             localStorage.clear();
             sessionStorage.clear();
         };
+    
+    const openPopupBtn = document.getElementById("openPopupBtn");
+    const popup = document.getElementById("popup");
+
+    // Show the popup when the button is clicked
+    openPopupBtn.addEventListener("click", function() {
+        popup.style.display = "block";
+    });
+
+    // Close the popup when the close button is clicked
+    closePopupBtn.addEventListener("click", function() {
+        popup.style.display = "none";
+    });
+
+    // Optionally close the popup if the user clicks outside the popup content
+    window.addEventListener("click", function(event) {
+        if (event.target === popup) {
+            popup.style.display = "none";
+        }
+    });
   </script>
 </body>
 </html>
