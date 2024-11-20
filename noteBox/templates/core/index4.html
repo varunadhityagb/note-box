@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PDF Viewer with Saveable Annotations</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <style>
+        #container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        #pdf-viewer {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+        
+        #toolbar {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .page-container {
+            position: relative;
+            margin: 20px auto;
+        }
+        
+        canvas {
+            border: 1px solid #ddd;
+        }
+        
+        .drawing-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        
+        #error-message {
+            color: red;
+            margin: 10px;
+        }
+        
+        button {
+            margin: 0 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        
+        .color-picker {
+            margin: 0 5px;
+        }
+        
+        .pen-size {
+            margin: 0 5px;
+            width: 60px;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 0 10px;
+            border-right: 1px solid #ddd;
+        }
+
+        .toolbar-group:last-child {
+            border-right: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <div class="toolbar-group">
+            <input type="file" id="file-input" accept="application/pdf">
+            <button id="load-test-pdf">Load Test PDF</button>
+        </div>
+        <div class="toolbar-group">
+            <button id="prev-page">Previous</button>
+            <span id="page-num"></span> / <span id="page-count"></span>
+            <button id="next-page">Next</button>
+        </div>
+        <div class="toolbar-group">
+            <button id="draw-mode">Start Drawing</button>
+            <input type="color" class="color-picker" value="#ff0000">
+            <input type="range" class="pen-size" min="1" max="10" value="2">
+            <button id="clear-page">Clear Page</button>
+        </div>
+        <div class="toolbar-group">
+            <button id="save-annotations">Save Annotations</button>
+            <button id="load-annotations">Load Annotations</button>
+            <button id="download-annotations">Download All</button>
+            <input type="file" id="upload-annotations" accept="application/json" style="display: none;">
+            <button id="upload-button">Upload Annotations</button>
+        </div>
+    </div>
+    
+    <div id="error-message"></div>
+    <div id="container">
+        <div id="pdf-viewer"></div>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        let pdfDoc = null;
+        let pageNum = 1;
+        let isDrawingMode = false;
+        let isDrawing = false;
+        let drawingCanvas = null;
+        let drawingContext = null;
+        let lastX = 0;
+        let lastY = 0;
+        let currentPdfName = '';
+        let annotationsData = {};
+
+        // Get all UI elements
+        const fileInput = document.getElementById('file-input');
+        const loadTestButton = document.getElementById('load-test-pdf');
+        const prevButton = document.getElementById('prev-page');
+        const nextButton = document.getElementById('next-page');
+        const pageNumSpan = document.getElementById('page-num');
+        const pageCountSpan = document.getElementById('page-count');
+        const drawButton = document.getElementById('draw-mode');
+        const colorPicker = document.querySelector('.color-picker');
+        const penSize = document.querySelector('.pen-size');
+        const clearButton = document.getElementById('clear-page');
+        const saveButton = document.getElementById('save-annotations');
+        const loadButton = document.getElementById('load-annotations');
+        const downloadButton = document.getElementById('download-annotations');
+        const uploadButton = document.getElementById('upload-button');
+        const uploadInput = document.getElementById('upload-annotations');
+        const container = document.getElementById('pdf-viewer');
+        const errorMessage = document.getElementById('error-message');
+
+        // Load PDF from file
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                currentPdfName = file.name;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    loadPDF(e.target.result);
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        });
+
+        async function loadPDFFromUrl(url) {
+            try {
+                errorMessage.textContent = 'Loading PDF...';
+                const loadingTask = pdfjsLib.getDocument(url);
+                pdfDoc = await loadingTask.promise;
+                errorMessage.textContent = '';
+                pageCountSpan.textContent = pdfDoc.numPages;
+                renderPage(pageNum);
+            } catch (error) {
+                errorMessage.textContent = 'Error loading PDF: ' + error.message;
+                console.error('Error loading PDF:', error);
+            }
+        }
+
+        async function loadPDF(data) {
+            try {
+                errorMessage.textContent = 'Loading PDF...';
+                pdfDoc = await pdfjsLib.getDocument({data}).promise;
+                errorMessage.textContent = '';
+                pageCountSpan.textContent = pdfDoc.numPages;
+                renderPage(pageNum);
+            } catch (error) {
+                errorMessage.textContent = 'Error loading PDF: ' + error.message;
+                console.error('Error loading PDF:', error);
+            }
+        }
+
+        async function renderPage(num) {
+            try {
+                const page = await pdfDoc.getPage(num);
+                const viewport = page.getViewport({scale: 1.5});
+                
+                const pageContainer = document.createElement('div');
+                pageContainer.className = 'page-container';
+                
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                // Create drawing canvas
+                drawingCanvas = document.createElement('canvas');
+                drawingCanvas.className = 'drawing-canvas';
+                drawingCanvas.width = viewport.width;
+                drawingCanvas.height = viewport.height;
+                drawingContext = drawingCanvas.getContext('2d');
+                
+                pageContainer.style.width = `${viewport.width}px`;
+                pageContainer.style.height = `${viewport.height}px`;
+                pageContainer.appendChild(canvas);
+                pageContainer.appendChild(drawingCanvas);
+                
+                container.innerHTML = '';
+                container.appendChild(pageContainer);
+                
+                const renderContext = {
+                    canvasContext: context,
+                    viewport: viewport
+                };
+                
+                await page.render(renderContext);
+                pageNumSpan.textContent = num;
+                
+                setupDrawingEvents(drawingCanvas);
+                loadAnnotationsForPage(num);
+            } catch (error) {
+                errorMessage.textContent = 'Error rendering page: ' + error.message;
+                console.error('Error rendering page:', error);
+            }
+        }
+
+        function setupDrawingEvents(canvas) {
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+        }
+
+        function startDrawing(e) {
+            if (!isDrawingMode) return;
+            
+            isDrawing = true;
+            const rect = drawingCanvas.getBoundingClientRect();
+            lastX = e.clientX - rect.left;
+            lastY = e.clientY - rect.top;
+            
+            drawingContext.beginPath();
+            drawingContext.moveTo(lastX, lastY);
+        }
+
+        function draw(e) {
+            if (!isDrawing || !isDrawingMode) return;
+            
+            const rect = drawingCanvas.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
+            
+            drawingContext.strokeStyle = colorPicker.value;
+            drawingContext.lineWidth = penSize.value;
+            drawingContext.lineCap = 'round';
+            drawingContext.lineJoin = 'round';
+            
+            drawingContext.lineTo(currentX, currentY);
+            drawingContext.stroke();
+            
+            lastX = currentX;
+            lastY = currentY;
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        // Save annotations for current page
+        function saveAnnotationsForPage() {
+            if (!drawingCanvas || !currentPdfName) return;
+            
+            const key = `${currentPdfName}_page${pageNum}`;
+            const imageData = drawingCanvas.toDataURL();
+            annotationsData[key] = imageData;
+            
+            try {
+                localStorage.setItem(key, imageData);
+                errorMessage.textContent = 'Annotations saved!';
+                setTimeout(() => errorMessage.textContent = '', 2000);
+            } catch (e) {
+                errorMessage.textContent = 'Error saving annotations: ' + e.message;
+            }
+        }
+
+        // Load annotations for current page
+        function loadAnnotationsForPage(pageNumber) {
+            if (!drawingCanvas || !currentPdfName) return;
+            
+            const key = `${currentPdfName}_page${pageNumber}`;
+            const savedData = localStorage.getItem(key) || annotationsData[key];
+            
+            if (savedData) {
+                const img = new Image();
+                img.onload = function() {
+                    drawingContext.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                    drawingContext.drawImage(img, 0, 0);
+                };
+                img.src = savedData;
+            } else {
+                if (drawingContext) {
+                    drawingContext.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                }
+            }
+        }
+
+        // Download all annotations
+        function downloadAnnotations() {
+            const data = {
+                pdfName: currentPdfName,
+                annotations: annotationsData
+            };
+            
+            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentPdfName}_annotations.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Upload annotations
+        function uploadAnnotations(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    annotationsData = data.annotations;
+                    loadAnnotationsForPage(pageNum);
+                    errorMessage.textContent = 'Annotations loaded!';
+                    setTimeout(() => errorMessage.textContent = '', 2000);
+                } catch (error) {
+                    errorMessage.textContent = 'Error loading annotations file';
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Event listeners
+        prevButton.addEventListener('click', () => {
+            if (pageNum <= 1) return;
+            pageNum--;
+            renderPage(pageNum);
+        });
+
+        nextButton.addEventListener('click', () => {
+            if (!pdfDoc || pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            renderPage(pageNum);
+        });
+
+        drawButton.addEventListener('click', () => {
+            isDrawingMode = !isDrawingMode;
+            drawButton.textContent = isDrawingMode ? 'Stop Drawing' : 'Start Drawing';
+            if (drawingCanvas) {
+                drawingCanvas.style.pointerEvents = isDrawingMode ? 'auto' : 'none';
+            }
+        });
+
+        clearButton.addEventListener('click', () => {
+            if (drawingContext) {
+                drawingContext.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                // Clear saved annotations for this page
+                const key = `${currentPdfName}_page${pageNum}`;
+                localStorage.removeItem(key);
+                delete annotationsData[key];
+            }
+        });
+
+        saveButton.addEventListener('click', saveAnnotationsForPage);
+        loadButton.addEventListener('click', () => loadAnnotationsForPage(pageNum));
+        downloadButton.addEventListener('click', downloadAnnotations);
+        uploadButton.addEventListener('click', () => uploadInput.click());
+        uploadInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                uploadAnnotations(e.target.files[0]);
+            }
+        });
+    </script>
+</body>
+</html>

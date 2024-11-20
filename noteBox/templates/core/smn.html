@@ -1,0 +1,31 @@
+<!-- templates/home.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Home</title>
+</head>
+<body>
+    <h1>Welcome {{ user.username }}!</h1>
+    {% if user.is_teacher %}
+        <p>You are logged in as a teacher.</p>
+    {% elif user.is_staff %}
+        <p>You are logged in as an admin.</p>
+    {% else %}
+        <p>You are logged in as a student.</p>
+    {% endif %}
+    
+    <form method="post" action="{% url 'core:logout' %}" id="logout-form">
+        {% csrf_token %}
+        <button type="submit" onclick="handleLogout(event)">Logout</button>
+    </form>
+
+    <script>
+        function handleLogout(event) {
+            event.preventDefault();
+            document.getElementById('logout-form').submit();
+            // Clear any client-side storage if you're using any
+            localStorage.clear();
+            sessionStorage.clear();
+        }
+    </script>
+</html>
