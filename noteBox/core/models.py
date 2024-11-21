@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator
+from datetime import timedelta
 
 class CustomUser(AbstractUser):
     is_teacher = models.BooleanField(default=False)
@@ -30,6 +31,9 @@ class ClassEnrollment(models.Model):
     students = models.ManyToManyField(CustomUser, related_name='students_enrolled', limit_choices_to={"is_teacher":False, 'is_staff':False})
     is_active = models.BooleanField(default=True)
 
+    def __str__(self) -> str:
+        return self.class_instance.name
+
 class StudyMaterials(models.Model):
     MATERIAL_TYPES = [
         ('PDF', 'PDF Document'),
@@ -46,25 +50,8 @@ class StudyMaterials(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-
-class PDFAnnotation(models.Model):
-    """Model specifically for PDF annotations using pdf.js"""
-    study_material = models.ForeignKey(
-        StudyMaterials, 
-        on_delete=models.CASCADE, 
-        related_name='pdf_annotations',
-        limit_choices_to={'material_type': 'PDF'}
-    )
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='pdf_annotations', limit_choices_to={'is_teacher':True})
-    page_number = models.IntegerField()
-    annotation_data = models.JSONField(
-        help_text="Stores the complete pdf.js annotation data including type, coordinates, and styling"
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['page_number', 'created_at']
+    def __str__(self) -> str:
+        return self.title
 
 
 class Doubt(models.Model):
@@ -83,6 +70,9 @@ class Doubt(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def __str__(self) -> str:
+        return self.content
+
 class DoubtResponse(models.Model):
     """Model for responses to doubts"""
     doubt = models.ForeignKey(Doubt, on_delete=models.CASCADE, related_name='responses')
@@ -98,5 +88,14 @@ class TimeBoxedSession(models.Model):
     study_material = models.ForeignKey(StudyMaterials, on_delete=models.CASCADE, related_name="material_for_session")
     start_time = models.DateTimeField()
     duration_minutes = models.IntegerField(validators=[MinValueValidator(1)])
+    end_time = models.DateTimeField(editable=False, null=True, blank=True) 
     created_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+    def save(self, *args, **kwargs):
+        if not self.end_time:
+            self.end_time = self.start_time + timedelta(minutes=self.duration_minutes)
+        
+        super().save(*args, **kwargs) 
+
+    def __str__(self):
+        return self.title

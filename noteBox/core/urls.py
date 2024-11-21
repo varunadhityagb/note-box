@@ -11,5 +11,6 @@ urlpatterns = [
     path('classes/', views.classes, name='classes'),
     path('classes/<str:class_name>/', views.class_redirect, name='class_redirect'),  
     path('classes/<str:class_name>/<str:fileName>/', views.pdf_view, name='pdf_view'),
+    path('timeboxed_session/<str:title>', views.timeboxed_session, name='timeboxed_session'),
     path('logout/', LogoutView.as_view(next_page='core:login', template_name='core/login.html'), name='logout'),
 ]

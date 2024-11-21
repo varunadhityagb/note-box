@@ -18,7 +18,7 @@
         #pdf-container {
             width: 66%;
             height: 100%;
-            background-color: #f8f9fa; /* Light background for readability */
+            background: linear-gradient(135deg, #2c3e50, #4ca1af); /* Light background for readability */
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -68,7 +68,7 @@
         #page-number {
             margin: 0 10px;
             font-size: 1em;
-            color: #333; /* Neutral text color */
+            color: #ffffff; /* Neutral text color */
         }
 
         #doubts-container {
@@ -140,9 +140,47 @@
         .add-doubt-button:hover {
             background-color: #388e3c; /* Hover darker green */
         }
+
+        .popup {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 1; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            background-color: rgba(0, 0, 0, 0.4); /* Semi-transparent background */
+        }
+
+        .popup-content {
+            background: linear-gradient(135deg, #2c3e50, #4ca1af);
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 30px;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+        }
+
+        .close-btn:hover,
+        .close-btn:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
     </style>
 </head>
-<body>
+<body>  
     <div id="pdf-container">
         <div id="pdf-viewer"></div>
         <div id="page-navigation">
@@ -156,21 +194,51 @@
         <div class="doubts-list">
             <div class="doubt-section">
                 <div class="section-header">Open</div>
-                <div class="doubt-item">What is the significance of this theorem?</div>
+                {% for doubt in grouped_doubts_open %}
+                <div class="doubt-item">{{ doubt.content }}</div>
+                {% if user.is_teacher %}
+                <form method="post">
+                {% csrf_token %}
+                {{ form2.as_p}}
+                <input type="hidden" name="doubt_id" value="{{ doubt.id }}">
+                <button type="submit">Answer</button>
+                </form>
+                {% endif %}
+                {% endfor %}
                 
             </div>
             <div class="doubt-section">
                 <div class="section-header">Answered</div>
-                <div class="doubt-item">How does this relate to the previous chapter?</div>
-                <div class="doubt-item">Is this formula applicable in all cases?</div>
+                {% for doubt in grouped_doubts_answered %}
+                <div class="doubt-item">{{ doubt.content }}</div>
+                {% if not user.is_teacher %}
+                {% for res in responses %}
+                {% if res.doubt == doubt %}
+                Ans: {{ res.content }}
+                {% endif %}
+                {% endfor %}
+                {% endif %}
+                {% endfor %}
             </div>
-            <div class="doubt-section">
-                <div class="section-header">Closed</div>
-                <div class="doubt-item">What are the prerequisites for this topic?</div>
-            </div>
+
         </div>
-        <button class="add-doubt-button">+</button>
+        {% if not user.is_teacher %}
+        <button class="add-doubt-button" id="openPopupBtn">+</button>
+        {% endif %}
     </div>
+
+
+    <div id="popup" class="popup">
+        <div class="popup-content">
+            <span id="closePopupBtn" class="close-btn">&times;</span>
+            <h2>Ask Doubt</h2>
+            <form method="post"">
+            {% csrf_token %}
+            {{ form1.as_p }}
+            <button type="submit">SUBMIT</button>
+            </form>
+        </div>
+      </div>
 
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
@@ -264,6 +332,26 @@
 
         document.querySelector('.add-doubt-button').addEventListener('click', function() {
             console.log('Add doubt clicked');
+        });
+
+        const openPopupBtn = document.getElementById("openPopupBtn");
+        const popup = document.getElementById("popup");
+
+        // Show the popup when the button is clicked
+        openPopupBtn.addEventListener("click", function() {
+            popup.style.display = "block";
+        });
+
+        // Close the popup when the close button is clicked
+        closePopupBtn.addEventListener("click", function() {
+            popup.style.display = "none";
+        });
+
+        // Optionally close the popup if the user clicks outside the popup content
+        window.addEventListener("click", function(event) {
+            if (event.target === popup) {
+                popup.style.display = "none";
+            }
         });
     </script>
 </body>
