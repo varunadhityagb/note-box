@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator
+from django.core.serializers.json import DjangoJSONEncoder
 from datetime import timedelta
 
 class CustomUser(AbstractUser):
@@ -49,6 +50,13 @@ class StudyMaterials(models.Model):
     created_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE, limit_choices_to={'is_teacher':True})
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    questions = models.JSONField(
+        default=dict,
+        encoder=DjangoJSONEncoder,  # Ensure proper encoding
+        blank=True,  # Optional field
+        help_text="List of question and answer pairs in JSON format"
+    )
 
     def __str__(self) -> str:
         return self.title

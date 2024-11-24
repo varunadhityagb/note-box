@@ -149,7 +149,7 @@ def pdf_view(request, class_name, fileName):
                                             'grouped_doubts_answered':grouped_doubts['ANSWERED'], 
                                             'grouped_doubts_closed':grouped_doubts['CLOSED'],
                                             'form1':form1, 'form2':form2, 'responses':responses})
-
+@login_required(login_url="/")
 def timeboxed_session(request, title):
     if not request.user.is_authenticated:
         return redirect('core:login')
@@ -157,4 +157,22 @@ def timeboxed_session(request, title):
         return redirect('/admin')
     
     session = get_object_or_404(TimeBoxedSession, title=title)
-    return render(request, 'core/timebox.html', {'user': request.user, 'session':session, 'pdf_url': session.study_material.file.url, })
+    return render(request, 'core/timebox.html', {'user': request.user, 'session':session, 'pdf_url': session.study_material.file.url,
+                                                 'time_duration': (int(session.duration_minutes)*60)})
+
+@login_required(login_url="/")
+def quiz_view(request, session_title):
+    if not request.user.is_authenticated:
+        return redirect('core:login')
+    elif request.user.is_staff:
+        return redirect('/admin')
+    
+    session = get_object_or_404(TimeBoxedSession, title=session_title)
+    questions = [
+        {
+            'question': 'What is 2+2?',
+            'options': ['3', '4', '5', '6'],
+            'answer': '4'
+        }
+    ]
+    return render(request, 'core/quiz.html', {'questions': session.study_material.questions})

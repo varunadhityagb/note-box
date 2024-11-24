@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoteBox - Quiz</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(135deg, #2c3e50, #4ca1af);
+      color: #fff;
+      font-family: 'Arial', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      margin: 0;
+    }
+
+    .profile-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      width: auto;
+    }
+
+    #profile-name {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    #profile-icon {
+      background: #16a085;
+      border: none;
+      padding: 8px 12px;
+      font-size: 1.2rem;
+      color: #fff;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    #profile-icon:hover {
+      background: #12897d;
+    }
+
+    #menu {
+      position: absolute;
+      top: 40px;
+      right: 0;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 5px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+      padding: 10px 0;
+    }
+
+    #menu ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    #menu ul li a {
+      color: #fff;
+      text-decoration: none;
+      padding: 8px 15px;
+      display: block;
+      transition: background 0.3s;
+    }
+
+    #menu ul li a:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    main {
+      flex: 1;
+      padding: 30px 20px;
+    }
+
+    .quiz-container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      max-width: 800px;
+      margin: 20px auto;
+    }
+
+    .quiz-question {
+      margin-bottom: 20px;
+    }
+
+    .quiz-question h4 {
+      margin-bottom: 15px;
+      font-size: 1.2rem;
+    }
+
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .quiz-options button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 5px;
+      background-color: #16a085;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .quiz-options button:hover {
+      background-color: #12897d;
+    }
+
+    .quiz-options button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .feedback {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 0.9rem;
+      color: white;
+      display: none;
+    }
+
+    .feedback.correct {
+      background-color: #4caf50;
+    }
+
+    .feedback.incorrect {
+      background-color: #f44336;
+    }
+
+    .completion-message {
+      display: none;
+      text-align: center;
+      padding: 20px;
+      background-color: #4caf50;
+      color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      margin: 20px auto;
+      max-width: 600px;
+    }
+
+    .completion-button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background-color: #16a085;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .completion-button:hover {
+      background-color: #12897d;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>NoteBox</h1>
+    <div class="profile-container">
+      <p id="profile-name">{{ user.first_name }} {{ user.last_name }}</p>
+      <button id="profile-icon">👤</button>
+      <div id="menu" class="hidden">
+        <ul>
+          <li>
+            <form method="post" action="{% url 'core:logout' %}" id="logout-form">
+              {% csrf_token %}
+              <a onclick="handleLogout(event)">Logout</a>
+            </form>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="quiz-container">
+      <h2>Quiz</h2>
+      <div id="quiz-questions">
+        {% for question in questions %}
+        <div class="quiz-question" id="question-{{ question.id }}">
+          <h4>{{ question.id }}. {{ question.text }}</h4>
+          <div class="quiz-options">
+            <button onclick="checkAnswer({{ question.id }}, 'a', '{{ question.correct_option }}')">A. {{ question.option_a }}</button>
+            <button onclick="checkAnswer({{ question.id }}, 'b', '{{ question.correct_option }}')">B. {{ question.option_b }}</button>
+            <button onclick="checkAnswer({{ question.id }}, 'c', '{{ question.correct_option }}')">C. {{ question.option_c }}</button>
+            <button onclick="checkAnswer({{ question.id }}, 'd', '{{ question.correct_option }}')">D. {{ question.option_d }}</button>
+          </div>
+          <div class="feedback" id="feedback-{{ question.id }}"></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div id="completion-message" class="completion-message">
+      <p>Congratulations! You've completed the quiz.</p>
+      <button class="completion-button" onclick="redirectToClasses()">Go to Classes</button>
+    </div>
+  </main>
+
+  <script>
+    let completedQuestions = 0;
+    const totalQuestions = {{ questions|length }};
+    const completionMessage = document.getElementById('completion-message');
+
+    function checkAnswer(questionId, selectedOption, correctOption) {
+      const feedback = document.getElementById(`feedback-${questionId}`);
+      const buttons = document.querySelectorAll(`#question-${questionId} .quiz-options button`);
+
+      buttons.forEach(button => button.disabled = true);
+
+      if (selectedOption === correctOption) {
+        feedback.textContent = "Correct!";
+        feedback.classList.add("correct");
+      } else {
+        feedback.textContent = `Incorrect! Correct answer: ${correctOption.toUpperCase()}`;
+        feedback.classList.add("incorrect");
+      }
+      feedback.style.display = "block";
+
+      // Check if all questions are answered
+      completedQuestions++;
+      if (completedQuestions === totalQuestions) {
+        completionMessage.style.display = "block";
+      }
+    }
+
+    function redirectToClasses() {
+      window.location.href = "/classes";
+    }
+
+    function handleLogout(event) {
+      event.preventDefault();
+      document.getElementById('logout-form').submit();
+    }
+  </script>
+</body>
+</html>

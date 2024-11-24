@@ -20,12 +20,23 @@ class CustomUserAdmin(UserAdmin):
     search_fields = ('username', 'email', 'first_name', 'last_name')
     ordering = ('username',)
 
+@admin.register(StudyMaterials)
+class StudyMaterialsAdmin(admin.ModelAdmin):
+    list_display = ('title', 'material_type', 'created_by', 'created_at')
+    search_fields = ('title', 'description')
+    list_filter = ('material_type', 'created_at')
+
+    # Customize how questions are displayed
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields['questions'].widget.attrs.update({'rows': 5, 'style': 'width: 70%;'})
+        return form
+
 # Unregister the default User model if it was previously registered
 admin.site.register(CustomUser, CustomUserAdmin)
 
 admin.site.register(Class)
 admin.site.register(ClassEnrollment)
-admin.site.register(StudyMaterials)
 admin.site.register(Doubt)
 admin.site.register(DoubtResponse)
 admin.site.register(TimeBoxedSession)
