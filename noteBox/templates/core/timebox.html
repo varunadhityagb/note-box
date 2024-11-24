@@ -347,14 +347,23 @@
             chatInput.value = '';
 
             try {
-                const response = await fetch("endpoint_url_here_", {
+                const response = await fetch("replace_with_chat_api_url", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'api-key': "api_key"
+                        'api-key': "replace_with_chat_api_key"
                     },
                     body: JSON.stringify({
                         "messages": [
+                                        {
+                                        "role": "system",
+                                        "content": [
+                                            {
+                                            "type": "text",
+                                            "text": "You are an AI assistant for Engineering students. You are supposed ot answer for queries only reagrding the subjects of engineering."
+                                            }
+                                        ]
+                                        },
                                         {
                                         "role": "user",
                                         "content": [
